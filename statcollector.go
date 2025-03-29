@@ -2,9 +2,8 @@ package main
 
 import (
 	"fmt"
-	"time"
-
 	"slices"
+	"time"
 )
 
 type statCollector struct {
@@ -89,7 +88,7 @@ func (s *statCollector) calculateStats() stats {
 func (s *statCollector) getSameFingerTransitions(f *finger) []transition {
 	var transitions []transition
 	for _, t := range s.transitions {
-		if t.correct && s.getFinger(t.from) == f && s.getFinger(t.to_actual) == f {
+		if t.correct && s.getFinger(t.from) == f && s.getFinger(t.toActual) == f {
 			transitions = append(transitions, t)
 		}
 	}
@@ -101,7 +100,7 @@ func (s *statCollector) getDifferentFingerSameHandTransitions(f *finger) []trans
 	var transitions []transition
 	for _, t := range s.transitions {
 		from := s.getFinger(t.from)
-		to := s.getFinger(t.to_actual)
+		to := s.getFinger(t.toActual)
 		if t.correct && from.left != to.left && from != to && to == f {
 			transitions = append(transitions, t)
 		}
@@ -113,7 +112,7 @@ func (s *statCollector) getDifferentFingerSameHandTransitions(f *finger) []trans
 func (s *statCollector) getLeftToRightHandTransitions() []transition {
 	var transitions []transition
 	for _, t := range s.transitions {
-		if t.correct && s.getFinger(t.from).left && !s.getFinger(t.to_actual).left {
+		if t.correct && s.getFinger(t.from).left && !s.getFinger(t.toActual).left {
 			transitions = append(transitions, t)
 		}
 	}
@@ -124,10 +123,10 @@ func (s *statCollector) getLeftToRightHandTransitions() []transition {
 func (s *statCollector) getLeftToRightHandTransitionsIgnoreSpace() []transition {
 	var transitions []transition
 	for _, t := range s.transitions {
-		if t.from == ' ' || t.to_actual == ' ' {
+		if t.from == ' ' || t.toActual == ' ' {
 			continue
 		}
-		if t.correct && s.getFinger(t.from).left && !s.getFinger(t.to_actual).left {
+		if t.correct && s.getFinger(t.from).left && !s.getFinger(t.toActual).left {
 			transitions = append(transitions, t)
 		}
 	}
@@ -138,7 +137,7 @@ func (s *statCollector) getLeftToRightHandTransitionsIgnoreSpace() []transition 
 func (s *statCollector) getRightToLeftHandTransitions() []transition {
 	var transitions []transition
 	for _, t := range s.transitions {
-		if t.correct && !s.getFinger(t.from).left && s.getFinger(t.to_actual).left {
+		if t.correct && !s.getFinger(t.from).left && s.getFinger(t.toActual).left {
 			transitions = append(transitions, t)
 		}
 	}
@@ -149,10 +148,10 @@ func (s *statCollector) getRightToLeftHandTransitions() []transition {
 func (s *statCollector) getRightToLeftHandTransitionsIgnoreSpace() []transition {
 	var transitions []transition
 	for _, t := range s.transitions {
-		if t.from == ' ' || t.to_actual == ' ' {
+		if t.from == ' ' || t.toActual == ' ' {
 			continue
 		}
-		if t.correct && !s.getFinger(t.from).left && s.getFinger(t.to_actual).left {
+		if t.correct && !s.getFinger(t.from).left && s.getFinger(t.toActual).left {
 			transitions = append(transitions, t)
 		}
 	}
@@ -197,20 +196,20 @@ func newFinger(left bool, keys ...rune) finger {
 }
 
 type transition struct {
-	from        rune
-	to_expected rune
-	to_actual   rune
-	duration    time.Duration
-	correct     bool
+	from       rune
+	toExpected rune
+	toActual   rune
+	duration   time.Duration
+	correct    bool
 }
 
 func newTransition(actual, expected, prev rune, duration time.Duration) transition {
 	return transition{
-		from:        prev,
-		to_expected: expected,
-		to_actual:   actual,
-		duration:    duration,
-		correct:     actual == expected,
+		from:       prev,
+		toExpected: expected,
+		toActual:   actual,
+		duration:   duration,
+		correct:    actual == expected,
 	}
 }
 
@@ -264,11 +263,11 @@ func newStat(transitions []transition) stat {
 	minT := slices.MinFunc(transitions, func(a, b transition) int {
 		return int(a.duration) - int(b.duration)
 	})
-	min := minT.duration
+	minDuration := minT.duration
 	maxT := slices.MaxFunc(transitions, func(a, b transition) int {
 		return int(a.duration) - int(b.duration)
 	})
-	max := maxT.duration
+	maxDuration := maxT.duration
 	var sum time.Duration
 	for _, t := range transitions {
 		sum += t.duration
@@ -278,9 +277,8 @@ func newStat(transitions []transition) stat {
 	slices.SortFunc(transitions, func(a, b transition) int {
 		if a.duration < b.duration {
 			return -1
-		} else {
-			return 1
 		}
+		return 1
 	})
 
 	var median time.Duration
@@ -289,8 +287,8 @@ func newStat(transitions []transition) stat {
 	}
 
 	return stat{
-		durationMin:    min,
-		durationMax:    max,
+		durationMin:    minDuration,
+		durationMax:    maxDuration,
 		durationMedian: median,
 		durationMean:   mean,
 		minT:           minT,
@@ -304,13 +302,13 @@ func (s *stat) String() string {
 	if s.minT.from != 0 {
 		minS = fmt.Sprintf("%v ms (%s)",
 			s.durationMin.Milliseconds(),
-			fmt.Sprintf("%s -> %s", string(s.printableChar(s.minT.from)), string(s.printableChar(s.minT.to_actual))))
+			fmt.Sprintf("%s -> %s", string(s.printableChar(s.minT.from)), string(s.printableChar(s.minT.toActual))))
 	}
 	maxS := fmt.Sprintf("%d ms", s.durationMax.Milliseconds())
 	if s.maxT.from != 0 {
 		maxS = fmt.Sprintf("%v ms (%s)",
 			s.durationMax.Milliseconds(),
-			fmt.Sprintf("%s -> %s", string(s.printableChar(s.maxT.from)), string(s.printableChar(s.maxT.to_actual))))
+			fmt.Sprintf("%s -> %s", string(s.printableChar(s.maxT.from)), string(s.printableChar(s.maxT.toActual))))
 	}
 	return fmt.Sprintf("%s\t%s\t%d ms\t%d ms\t%d",
 		minS,
